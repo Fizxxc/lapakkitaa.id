@@ -7,9 +7,8 @@
     { "source": "/admin", "destination": "public/admin-dashboard.html" },
     { "source": "/user", "destination": "public/user-dashboard.html" },
     { "source": "/chat", "destination": "public/chat.html" },
-    { "source": "/chatlist", "destination": "public/maintance.html" }
+    { "source": "/chatlist", "destination": "public/chatlist.html" }
+  ],
   "cleanUrls": true,
   "trailingSlash": false
 }
-
-
