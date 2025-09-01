@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>User Dashboard - LapakKita</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+    header {
+      background: #6C63FF;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h2 { margin: 0; }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    input, textarea {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    button {
+      padding: 10px 20px;
+      border: none;
+      background: #6C63FF;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+    button:hover { background: #5548d6; }
+    ul { list-style: none; padding: 0; }
+    li {
+      background: #f8f9fb;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 4px solid #6C63FF;
+    }
+    .seller {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 4px;
+      text-align: right;
+    }
+    .chat-item { cursor: pointer; }
+    .chat-item:hover { background: #ececff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Dashboard User</h2>
+    <button id="logoutBtn">Logout</button>
+  </header>
+  
+  <div class="card">
+    <h3>Tambah Produk</h3>
+    <input type="text" id="productName" placeholder="Nama Produk">
+    <textarea id="productDesc" placeholder="Deskripsi Produk"></textarea>
+    <input type="number" id="productPrice" placeholder="Harga">
+    <button id="addProductBtn">Tambah</button>
+  </div>
+
+  <div class="card">
+    <h3>Produk Saya</h3>
+    <ul id="myProducts"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Chat Masuk</h3>
+    <ul id="myChats"></ul>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./js/firebase.js";
+    import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import { ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js";
+
+    const logoutBtn = document.getElementById("logoutBtn");
+    const addProductBtn = document.getElementById("addProductBtn");
+
+    let currentUser = null;
+
+    // cek user login
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      } else {
+        currentUser = user;
+        loadMyProducts(user);
+        loadMyChats(user);
+      }
+    });
+
+    function loadMyProducts(user){
+      const myProductsRef = ref(db, "products");
+      onValue(myProductsRef, (snapshot) => {
+        const products = snapshot.val() || {};
+        const list = document.getElementById("myProducts");
+        list.innerHTML = "";
+        for (let id in products) {
+          if (products[id].owner === user.uid) {
+            let li = document.createElement("li");
+            li.innerHTML = `
+              <strong>${products[id].name}</strong> - Rp${products[id].price} <br>
+              <em>${products[id].desc || "Tidak ada deskripsi"}</em>
+              <div class="seller">Penjual: ${products[id].seller || "Anonim"}</div>
+              <small>[${products[id].status}]</small>
+            `;
+            list.appendChild(li);
+          }
+        }
+      });
+    }
+
+    // load chat untuk seller
+    function loadMyChats(user){
+      const myChatsRef = ref(db, "chats");
+      onValue(myChatsRef, (snapshot) => {
+        const chats = snapshot.val() || {};
+        const list = document.getElementById("myChats");
+        list.innerHTML = "";
+        for (let chatId in chats) {
+          const c = chats[chatId];
+          if (c.sellerId === user.uid) {
+            let li = document.createElement("li");
+            li.className = "chat-item";
+            li.innerHTML = `
+              <strong>Chat Produk:</strong> ${c.productId} <br>
+              <small>Pembeli: ${c.buyerId}</small>
+            `;
+            li.onclick = () => {
+              window.location.href = `chat.html?chatId=${chatId}`;
+            };
+            list.appendChild(li);
+          }
+        }
+        if(list.innerHTML === "") list.innerHTML = "<li>Belum ada chat masuk</li>";
+      });
+    }
+
+    // tambah produk
+    addProductBtn.addEventListener("click", () => {
+      const user = auth.currentUser;
+      const name = document.getElementById("productName").value.trim();
+      const desc = document.getElementById("productDesc").value.trim();
+      const price = document.getElementById("productPrice").value.trim();
+
+      if (!name || !price) {
+        alert("Nama dan harga produk wajib diisi!");
+        return;
+      }
+
+      push(ref(db, "products"), {
+        name: name,
+        desc: desc || "",
+        price: price,
+        status: "Menunggu persetujuan",
+        owner: user.uid,
+        seller: user.displayName || user.email,
+        sellerId: user.uid   // ✅ simpan sellerId supaya bisa dipakai saat buat chat
+      });
+
+      document.getElementById("productName").value = "";
+      document.getElementById("productDesc").value = "";
+      document.getElementById("productPrice").value = "";
+    });
+
+    // logout
+    logoutBtn.addEventListener("click", () => {
+      signOut(auth).then(() => {
+        window.location.href = "login.html";
+      });
+    });
+  </script>
+</body>
+</html>

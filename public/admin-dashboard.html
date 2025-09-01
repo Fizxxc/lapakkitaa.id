@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard - LapakKita</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 20px;
+    }
+
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #c8a2ff;
+      text-shadow: 0 0 10px rgba(200, 162, 255, 0.6);
+    }
+
+    .glass-container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 800px;
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+
+    button {
+      padding: 8px 16px;
+      margin-left: 10px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button.approve {
+      background: #6c63ff;
+      color: white;
+    }
+
+    button.approve:hover {
+      background: #5548d8;
+    }
+
+    button.reject {
+      background: #ff4b5c;
+      color: white;
+    }
+
+    button.reject:hover {
+      background: #d63c4a;
+    }
+
+    button#logoutBtn {
+      margin-bottom: 20px;
+      background: #000;
+      color: #fff;
+      border: 1px solid #6c63ff;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 15px;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <h2>Dashboard Admin</h2>
+  <button id="logoutBtn">Logout</button>
+
+  <div class="glass-container">
+    <h3>Produk Pending</h3>
+    <ul id="pendingProducts"></ul>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./js/firebase.js";
+    import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import { ref, onValue, update, get } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js";
+
+    const list = document.getElementById("pendingProducts");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // Protect hanya admin yang bisa akses
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "admin-login.html";
+      } else {
+        get(ref(db, "users/" + user.uid)).then(snapshot => {
+          if (!snapshot.exists() || snapshot.val().role !== "admin") {
+            Swal.fire({
+              icon: "error",
+              title: "Akses ditolak",
+              text: "Anda bukan admin!",
+              confirmButtonColor: "#6c63ff"
+            }).then(() => {
+              window.location.href = "login.html";
+            });
+          }
+        });
+      }
+    });
+
+    // Load produk pending
+    onValue(ref(db, "products"), (snapshot) => {
+      list.innerHTML = "";
+      const products = snapshot.val();
+      for (let id in products) {
+        if (products[id].status === "Menunggu persetujuan") {
+          let li = document.createElement("li");
+          li.innerHTML = `
+            <span>${products[id].name} - Rp${products[id].price}</span>
+          `;
+
+          let approveBtn = document.createElement("button");
+          approveBtn.textContent = "Setujui";
+          approveBtn.className = "approve";
+          approveBtn.onclick = () => {
+            update(ref(db, "products/" + id), { status: "Disetujui" });
+          };
+
+          let rejectBtn = document.createElement("button");
+          rejectBtn.textContent = "Tolak";
+          rejectBtn.className = "reject";
+          rejectBtn.onclick = () => {
+            update(ref(db, "products/" + id), { status: "Ditolak" });
+          };
+
+          li.appendChild(approveBtn);
+          li.appendChild(rejectBtn);
+          list.appendChild(li);
+        }
+      }
+    });
+
+    // Logout
+    logoutBtn.addEventListener("click", () => {
+      signOut(auth).then(() => {
+        window.location.href = "admin-login.html";
+      });
+    });
+  </script>
+</body>
+</html>

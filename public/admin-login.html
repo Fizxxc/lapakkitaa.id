@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login - LapakKita</title>
+  <!-- SweetAlert -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      padding: 40px 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+      color: #c8a2ff;
+      text-shadow: 0 0 10px rgba(200, 162, 255, 0.6);
+    }
+
+    input {
+      width: 90%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: background 0.3s;
+    }
+
+    input:focus {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 1rem;
+      background: #6c63ff;
+      color: #fff;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #5548d8;
+    }
+
+    /* Responsif */
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 30px 20px;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h2>Login Admin</h2>
+    <input type="email" id="adminEmail" placeholder="Email" required>
+    <input type="password" id="adminPassword" placeholder="Password" required>
+    <button id="adminLoginBtn">Login</button>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { auth, db } from "./js/firebase.js";
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js";
+
+    const loginBtn = document.getElementById("adminLoginBtn");
+
+    loginBtn.addEventListener("click", () => {
+      const email = document.getElementById("adminEmail").value.trim();
+      const password = document.getElementById("adminPassword").value.trim();
+
+      if (!email || !password) {
+        Swal.fire({
+          icon: "warning",
+          title: "Oops...",
+          text: "Email dan password wajib diisi!",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 3000
+        });
+        return;
+      }
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then(cred => {
+          const userRef = ref(db, "users/" + cred.user.uid);
+          return get(userRef).then(snapshot => {
+            if (snapshot.exists() && snapshot.val().role === "admin") {
+              Swal.fire({
+                icon: "success",
+                title: "Login berhasil",
+                text: "Selamat datang Admin!",
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 2000
+              });
+              setTimeout(() => {
+                window.location.href = "admin-dashboard.html";
+              }, 2000);
+            } else {
+              Swal.fire({
+                icon: "error",
+                title: "Akses ditolak",
+                text: "Anda bukan admin!",
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000
+              });
+            }
+          });
+        })
+        .catch(err => {
+          Swal.fire({
+            icon: "error",
+            title: "Login gagal",
+            text: err.message,
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 4000
+          });
+        });
+    });
+  </script>
+</body>
+</html>

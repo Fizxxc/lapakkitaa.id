@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js"></script>
+  <script src="firebase.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    .chat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .chat-item {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chat-info {
+      flex: 1;
+    }
+    .chat-info h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #222;
+    }
+    .chat-info p {
+      margin: 5px 0 0;
+      font-size: 14px;
+      color: #555;
+    }
+    .chat-actions button {
+      margin-left: 10px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-open {
+      background: #6a0dad;
+      color: white;
+    }
+    .btn-delete {
+      background: #d9534f;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h2>Daftar Chat</h2>
+  <div class="chat-list" id="chatList"></div>
+
+  <script>
+    const db = firebase.database();
+
+    function loadChats() {
+      const chatList = document.getElementById('chatList');
+      chatList.innerHTML = "";
+
+      db.ref("chats").on("value", (snapshot) => {
+        chatList.innerHTML = "";
+        if (snapshot.exists()) {
+          snapshot.forEach((chatSnap) => {
+            const chatId = chatSnap.key;
+            const chatData = chatSnap.val();
+            const lastMessage = chatData.lastMessage || "Belum ada pesan";
+
+            const div = document.createElement("div");
+            div.className = "chat-item";
+            div.innerHTML = `
+              <div class="chat-info">
+                <h3>${chatData.buyerName || "User"}</h3>
+                <p>${lastMessage}</p>
+              </div>
+              <div class="chat-actions">
+                <button class="btn-open" onclick="openChat('${chatId}')">Masuk</button>
+                <button class="btn-delete" onclick="deleteChat('${chatId}')">Hapus</button>
+              </div>
+            `;
+            chatList.appendChild(div);
+          });
+        } else {
+          chatList.innerHTML = "<p>Tidak ada chat.</p>";
+        }
+      });
+    }
+
+    function openChat(chatId) {
+      window.location.href = `chat.html?chatId=${chatId}`;
+    }
+
+    function deleteChat(chatId) {
+      Swal.fire({
+        title: "Yakin hapus chat?",
+        text: "Chat ini akan dihapus permanen!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Ya, hapus",
+        cancelButtonText: "Batal"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          db.ref("chats/" + chatId).remove().then(() => {
+            Swal.fire("Dihapus!", "Chat berhasil dihapus.", "success");
+          });
+        }
+      });
+    }
+
+    // Load chat ketika halaman dibuka
+    loadChats();
+  </script>
+</body>
+</html>

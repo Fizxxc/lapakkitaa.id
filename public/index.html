@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LapakKita - Beranda</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+    }
+    #loading {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background:#0f0c29; display:flex; justify-content:center; align-items:center;
+      flex-direction:column; z-index:9999; color:#fff;
+    }
+    .spinner {
+      width:60px; height:60px; border:6px solid rgba(255,255,255,0.2);
+      border-top:6px solid #9b06c4; border-radius:50%;
+      animation:spin 1s linear infinite; margin-bottom:12px;
+    }
+    @keyframes spin {0%{transform:rotate(0);}100%{transform:rotate(360deg);}}
+    header { padding:20px; display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.4); backdrop-filter:blur(6px);}
+    header h1 { margin:0; font-size:2rem; color:#c8a2ff; text-shadow:0 0 10px rgba(200,162,255,.6);}
+    nav { display:flex; align-items:center; gap:15px;}
+    nav .nav-link, nav button { color:#fff; background:none; border:none; font-weight:600; cursor:pointer; text-decoration:none;}
+    nav .chat-btn { display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:8px; transition:.3s;}
+    nav .chat-btn:hover { background:rgba(255,255,255,0.1);}
+    main { padding:30px; max-width:1000px; margin:auto;}
+    #produk-list { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px;}
+    .produk { background:rgba(255,255,255,0.08); padding:20px; border-radius:16px; text-align:center; }
+    .produk h3{color:#c8a2ff;} .produk strong{color:#ffcc00;}
+    .produk button{margin-top:10px; background:#6c63ff; color:#fff; border:none; padding:8px 14px;
+      border-radius:8px; cursor:pointer; transition:.3s;}
+    .produk button:hover{background:#5548d8;}
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <h2>Memuat LapakKita...</h2>
+  </div>
+
+  <div id="app" style="display:none;">
+    <header>
+      <h1>LapakKita</h1>
+      <nav id="navMenu"></nav>
+    </header>
+    <main>
+      <h2>Produk Tersedia</h2>
+      <div id="produk-list"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { db, ref, onValue, auth, onAuthStateChanged, signOut, push, set } from "./js/firebase.js";
+
+    const produkList = document.getElementById("produk-list");
+    const loading = document.getElementById("loading");
+    const app = document.getElementById("app");
+    const navMenu = document.getElementById("navMenu");
+
+    function renderNav(user){
+      if(user){
+        navMenu.innerHTML = `
+          <a href="chatlist.html" class="chat-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+              class="lucide lucide-message-circle">
+              <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 
+              1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 
+              10 10 0 1 0-4.777-4.719"/>
+            </svg>
+            Chat Room
+          </a>
+          <button id="logoutBtn">Logout</button>
+        `;
+        document.getElementById("logoutBtn").onclick=async()=>{
+          await signOut(auth); Swal.fire("Logout berhasil","","success");
+        };
+      }else{
+        navMenu.innerHTML=`
+          <a href="login.html" class="nav-link">Login</a>
+          | <a href="register.html" class="nav-link">Register</a>`;
+      }
+    }
+    onAuthStateChanged(auth,(user)=>{renderNav(user);});
+
+    // Produk
+    const produkRef=ref(db,"products");
+    onValue(produkRef,(snapshot)=>{
+      produkList.innerHTML="";
+      if(snapshot.exists()){
+        let ada=false;
+        snapshot.forEach(child=>{
+          const id=child.key;
+          const p=child.val();
+          if(p.status!=="Disetujui") return;
+          ada=true;
+          const div=document.createElement("div");
+          div.className="produk";
+          div.innerHTML=`
+            <h3>${p.name||"Produk"}</h3>
+            <p>${p.desc||"Tidak ada deskripsi"}</p>
+            <strong>Rp ${(p.price)?Number(p.price).toLocaleString("id-ID"):"-"}</strong>
+            <p style="font-size:0.8rem;color:#aaa;">Penjual: ${p.seller||"Anonim"}</p>
+            <button>Beli</button>
+          `;
+          div.querySelector("button").onclick=()=>buatChat(id,p);
+          produkList.appendChild(div);
+        });
+        if(!ada) produkList.innerHTML="<p style='text-align:center;'>Belum ada produk.</p>";
+      }else{
+        produkList.innerHTML="<p style='text-align:center;'>Belum ada produk.</p>";
+      }
+      loading.style.display="none"; app.style.display="block";
+    });
+
+    // Buat chat baru
+    function buatChat(productId,p){
+      const user=auth.currentUser;
+      if(!user){ Swal.fire("Login dulu","Anda harus login untuk membeli","warning"); return;}
+      if(user.uid===p.sellerId){ Swal.fire("Tidak bisa","Anda adalah penjual produk ini","info"); return;}
+      const chatRef=push(ref(db,"chats"));
+      set(chatRef,{
+        productId:productId,
+        buyerId:user.uid,
+        sellerId:p.sellerId,
+        createdAt:Date.now()
+      }).then(()=>{
+        window.location.href=`/chat?chatId=${chatRef.key}`;
+      });
+    }
+  </script>
+</body>
+</html>
