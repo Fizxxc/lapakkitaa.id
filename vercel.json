@@ -7,9 +7,10 @@
     { "source": "/admin", "destination": "public/admin-dashboard.html" },
     { "source": "/user", "destination": "public/user-dashboard.html" },
     { "source": "/chat", "destination": "public/chat.html" },
-    { "source": "/chatlist", "destination": "public/chatlist.html" },
+    { "source": "/chatlist", "destination": "public/maintance.html" },
      { "src": "/api/sendEmail", "dest": "/api/sendEmail.js" }
   ],
   "cleanUrls": true,
   "trailingSlash": false
 }
+
